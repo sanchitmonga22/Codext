@@ -1,0 +1,18 @@
+# Bats test deps (installed by tests/setup.sh)
+tests/libs/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
