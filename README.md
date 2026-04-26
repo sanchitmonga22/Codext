@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/codext-logo-dark.svg">
-    <img src="assets/logo/codext-logo-light.svg" alt="Codext logo" width="180" height="180">
-  </picture>
+  <img src="assets/logo/codext-logo.svg" alt="Codext logo" width="180" height="180">
 </p>
 
 <h1 align="center">Codext</h1>

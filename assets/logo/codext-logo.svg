@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Codext logo">
+  <title>Codext</title>
+  <defs>
+    <linearGradient id="codext-gradient" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%"   stop-color="#B1AAF8"/>
+      <stop offset="35%"  stop-color="#8DA8F8"/>
+      <stop offset="75%"  stop-color="#5059F5"/>
+      <stop offset="100%" stop-color="#444AF5"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#FFFFFF"/>
+  <rect x="32" y="32" width="448" height="448" rx="76" fill="url(#codext-gradient)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 376 256 A 120 120 0 1 1 256 136" stroke-width="28"/>
+    <path d="M 224 108 L 256 136 L 228 168" stroke-width="28"/>
+    <path d="M 196 200 L 256 256 L 196 312" stroke-width="44"/>
+    <path d="M 280 312 L 348 312" stroke-width="44"/>
+  </g>
+</svg>
