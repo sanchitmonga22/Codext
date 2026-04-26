@@ -1,6 +1,13 @@
-# Codext
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/codext-logo-dark.svg">
+    <img src="assets/logo/codext-logo-light.svg" alt="Codext logo" width="180" height="180">
+  </picture>
+</p>
 
-> *Codex, with a silent T — borrowed from [Loopt](https://en.wikipedia.org/wiki/Loopt). The loop is the point.*
+<h1 align="center">Codext</h1>
+
+<p align="center"><em>Codex, with a silent T — borrowed from <a href="https://en.wikipedia.org/wiki/Loopt">Loopt</a>. The loop is the point.</em></p>
 
 Run OpenAI's [Codex CLI](https://github.com/openai/codex) in a loop — autonomously opening pull requests, waiting for CI and reviews, and merging them — so multi-step refactors, test sweeps, and dependency upgrades complete while you sleep.
 
