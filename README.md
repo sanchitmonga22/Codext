@@ -4,6 +4,8 @@
 
 Run OpenAI's [Codex CLI](https://github.com/openai/codex) in a loop — autonomously opening pull requests, waiting for CI and reviews, and merging them — so multi-step refactors, test sweeps, and dependency upgrades complete while you sleep.
 
+> *Codext was itself built using Codex CLI. The loop ate its own tail.*
+
 ## How it works
 
 Codext drives `codex exec` iteratively against your repo. Each iteration:
