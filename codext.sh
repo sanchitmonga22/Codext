@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="v0.1.0"
+VERSION="v0.1.1"
 
 # Repo coordinates used for self-update checks and release-note display.
 UPDATE_REPO_OWNER="sanchitmonga22"
@@ -1709,9 +1709,11 @@ run_codex_iteration() {
                     "🩹 patch " + (.item.status // "?")
                 elif .type == "turn.failed" then
                     "❌ " + ((.error.message // "turn failed") | truncate)
-                elif .type == "error" then
-                    "❌ " + ((.message // "error") | truncate)
                 else
+                    # Skip standalone "error" events in the streaming display:
+                    # codex usually pairs them with a turn.failed that carries
+                    # the same message. parse_codex_result still picks up
+                    # standalone errors and surfaces them after the iteration.
                     empty
                 end
             ' 2>/dev/null)
@@ -1774,25 +1776,35 @@ run_codex_iteration() {
     return 0
 }
 
-# Sum a token field across all turn.completed events in the iteration's
-# captured JSONL output and add it to the running total. Returns the
-# per-iteration sum on stdout so the caller can log it.
+# Per-iteration token counts written by accumulate_iteration_tokens.
+# These are read by callers immediately after the call. Globals (rather
+# than a stdout return value) are required because callers must run the
+# function in the current shell — `var=$(accumulate_iteration_tokens ...)`
+# would put it in a subshell and the running totals would never accumulate.
+LAST_ITER_INPUT_TOKENS=0
+LAST_ITER_OUTPUT_TOKENS=0
+LAST_ITER_REASONING_TOKENS=0
+LAST_ITER_CACHED_INPUT_TOKENS=0
+LAST_ITER_TOKEN_TOTAL=0
+
+# Sum token usage across all turn.completed events in the iteration's
+# captured JSONL output. Updates the running totals AND the LAST_ITER_*
+# globals so the caller can log the per-iteration breakdown without
+# re-parsing the JSONL.
 accumulate_iteration_tokens() {
     local result="$1"
 
-    local iter_input iter_output iter_reasoning iter_cached
-    iter_input=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.input_tokens // 0] | add // 0' 2>/dev/null || echo "0")
-    iter_output=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.output_tokens // 0] | add // 0' 2>/dev/null || echo "0")
-    iter_reasoning=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.reasoning_output_tokens // 0] | add // 0' 2>/dev/null || echo "0")
-    iter_cached=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.cached_input_tokens // 0] | add // 0' 2>/dev/null || echo "0")
+    LAST_ITER_INPUT_TOKENS=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.input_tokens // 0] | add // 0' 2>/dev/null || echo "0")
+    LAST_ITER_OUTPUT_TOKENS=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.output_tokens // 0] | add // 0' 2>/dev/null || echo "0")
+    LAST_ITER_REASONING_TOKENS=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.reasoning_output_tokens // 0] | add // 0' 2>/dev/null || echo "0")
+    LAST_ITER_CACHED_INPUT_TOKENS=$(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.cached_input_tokens // 0] | add // 0' 2>/dev/null || echo "0")
 
-    total_input_tokens=$((total_input_tokens + iter_input))
-    total_output_tokens=$((total_output_tokens + iter_output))
-    total_reasoning_tokens=$((total_reasoning_tokens + iter_reasoning))
-    total_cached_input_tokens=$((total_cached_input_tokens + iter_cached))
+    total_input_tokens=$((total_input_tokens + LAST_ITER_INPUT_TOKENS))
+    total_output_tokens=$((total_output_tokens + LAST_ITER_OUTPUT_TOKENS))
+    total_reasoning_tokens=$((total_reasoning_tokens + LAST_ITER_REASONING_TOKENS))
+    total_cached_input_tokens=$((total_cached_input_tokens + LAST_ITER_CACHED_INPUT_TOKENS))
 
-    local iter_total=$((iter_input + iter_output + iter_reasoning))
-    echo "$iter_total"
+    LAST_ITER_TOKEN_TOTAL=$((LAST_ITER_INPUT_TOKENS + LAST_ITER_OUTPUT_TOKENS + LAST_ITER_REASONING_TOKENS))
 }
 
 run_reviewer_iteration() {
@@ -1823,10 +1835,9 @@ ${review_prompt}"
         return 1
     fi
 
-    local iter_total
-    iter_total=$(accumulate_iteration_tokens "$result")
-    if [ -n "$iter_total" ] && [ "$iter_total" != "0" ]; then
-        printf "🔢 %s Reviewer tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$iter_total")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
+    accumulate_iteration_tokens "$result"
+    if [ "$LAST_ITER_TOKEN_TOTAL" != "0" ]; then
+        printf "🔢 %s Reviewer tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$LAST_ITER_TOKEN_TOTAL")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
     fi
 
     echo "✅ $iteration_display Reviewer pass completed" >&2
@@ -1885,10 +1896,9 @@ run_ci_fix_iteration() {
         return 1
     fi
 
-    local iter_total
-    iter_total=$(accumulate_iteration_tokens "$result")
-    if [ -n "$iter_total" ] && [ "$iter_total" != "0" ]; then
-        printf "🔢 %s CI fix tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$iter_total")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
+    accumulate_iteration_tokens "$result"
+    if [ "$LAST_ITER_TOKEN_TOTAL" != "0" ]; then
+        printf "🔢 %s CI fix tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$LAST_ITER_TOKEN_TOTAL")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
     fi
 
     echo "✅ $iteration_display CI fix iteration completed, checking CI status..." >&2
@@ -1972,10 +1982,9 @@ run_comment_fix_iteration() {
         return 1
     fi
 
-    local iter_total
-    iter_total=$(accumulate_iteration_tokens "$result")
-    if [ -n "$iter_total" ] && [ "$iter_total" != "0" ]; then
-        printf "🔢 %s Comment review tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$iter_total")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
+    accumulate_iteration_tokens "$result"
+    if [ "$LAST_ITER_TOKEN_TOTAL" != "0" ]; then
+        printf "🔢 %s Comment review tokens: %s (running total: %s)\n" "$iteration_display" "$(format_tokens "$LAST_ITER_TOKEN_TOTAL")" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
     fi
 
     echo "✅ $iteration_display Comment review iteration completed" >&2
@@ -2121,16 +2130,15 @@ handle_iteration_success() {
         completion_signal_count=0
     fi
 
-    local iter_total
-    iter_total=$(accumulate_iteration_tokens "$result")
-    if [ -n "$iter_total" ] && [ "$iter_total" != "0" ]; then
+    accumulate_iteration_tokens "$result"
+    if [ "$LAST_ITER_TOKEN_TOTAL" != "0" ]; then
         echo "" >&2
         printf "🔢 %s Iteration tokens: %s (in:%s out:%s reasoning:%s)\n" \
             "$iteration_display" \
-            "$(format_tokens "$iter_total")" \
-            "$(format_tokens $(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.input_tokens // 0] | add // 0'))" \
-            "$(format_tokens $(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.output_tokens // 0] | add // 0'))" \
-            "$(format_tokens $(echo "$result" | jq -s '[.[] | select(.type == "turn.completed") | .usage.reasoning_output_tokens // 0] | add // 0'))" \
+            "$(format_tokens "$LAST_ITER_TOKEN_TOTAL")" \
+            "$(format_tokens "$LAST_ITER_INPUT_TOKENS")" \
+            "$(format_tokens "$LAST_ITER_OUTPUT_TOKENS")" \
+            "$(format_tokens "$LAST_ITER_REASONING_TOKENS")" \
             >&2
         printf "   Running total: %s tokens\n" "$(format_tokens $((total_input_tokens + total_output_tokens + total_reasoning_tokens)))" >&2
     fi

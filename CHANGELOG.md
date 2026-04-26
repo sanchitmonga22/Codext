@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.1
+
+Bugfix release.
+
+- Running token total now actually accumulates across iterations. The previous release computed per-iteration tokens correctly but the running total stayed at 0 because `accumulate_iteration_tokens` was being called inside `$(…)`, which forks a subshell and discards global-variable updates.
+- Cleaner streaming display when codex emits an error: no longer prints the same `❌` line twice when codex pairs an `error` event with a `turn.failed` event.
+- Installer's "Get started" hint now shows the short, auto-detecting form (`codext -p "your task" -m 5`) instead of an obsolete `--owner ... --repo ...` example.
+
 ## v0.1.0
 
 Initial release.

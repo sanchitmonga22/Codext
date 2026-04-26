@@ -340,14 +340,34 @@ setup() {
     total_output_tokens=0
     total_reasoning_tokens=0
     total_cached_input_tokens=0
+    LAST_ITER_TOKEN_TOTAL=0
 
     local result='{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":200,"reasoning_output_tokens":50}}
 {"type":"turn.completed","usage":{"input_tokens":5,"cached_input_tokens":0,"output_tokens":10,"reasoning_output_tokens":0}}'
 
-    run accumulate_iteration_tokens "$result"
-    assert_success
-    # Per-iteration sum returned: (100+5) + (200+10) + (50+0) = 365
-    assert_output "365"
+    # Call directly (not via `run`) so global vars accumulate in the current shell.
+    accumulate_iteration_tokens "$result"
+
+    # Per-iteration totals: 100+5=105 input, 200+10=210 output, 50+0=50 reasoning, 10+0=10 cached.
+    assert_equal "$LAST_ITER_INPUT_TOKENS" "105"
+    assert_equal "$LAST_ITER_OUTPUT_TOKENS" "210"
+    assert_equal "$LAST_ITER_REASONING_TOKENS" "50"
+    assert_equal "$LAST_ITER_CACHED_INPUT_TOKENS" "10"
+    assert_equal "$LAST_ITER_TOKEN_TOTAL" "365"
+
+    # Running totals must be updated in the parent shell — the bug was that
+    # earlier callers used `var=$(accumulate_iteration_tokens ...)` which ran
+    # the function in a subshell, so totals never accumulated.
+    assert_equal "$total_input_tokens" "105"
+    assert_equal "$total_output_tokens" "210"
+    assert_equal "$total_reasoning_tokens" "50"
+    assert_equal "$total_cached_input_tokens" "10"
+
+    # A second call should keep accumulating into the running totals.
+    accumulate_iteration_tokens "$result"
+    assert_equal "$total_input_tokens" "210"
+    assert_equal "$total_output_tokens" "420"
+    assert_equal "$LAST_ITER_TOKEN_TOTAL" "365"
 }
 
 @test "accumulate_iteration_tokens handles no turn.completed events" {
@@ -356,11 +376,13 @@ setup() {
     total_output_tokens=0
     total_reasoning_tokens=0
     total_cached_input_tokens=0
+    LAST_ITER_TOKEN_TOTAL=999  # ensure it gets reset
 
     local result='{"type":"thread.started","thread_id":"x"}'
-    run accumulate_iteration_tokens "$result"
-    assert_success
-    assert_output "0"
+    accumulate_iteration_tokens "$result"
+
+    assert_equal "$LAST_ITER_TOKEN_TOTAL" "0"
+    assert_equal "$total_input_tokens" "0"
 }
 
 # -------------------------------------------------------------
