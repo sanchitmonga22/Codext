@@ -96,7 +96,7 @@ Pick one (or combine — first one to trip wins):
 
 ## Credits
 
-The iterative-PR-loop pattern is borrowed from [continuous-claude](https://github.com/AnandChowdhary/continuous-claude). Thanks to its author for the original idea.
+The iterative-PR-loop pattern is borrowed from [continuous-claude](https://github.com/AnandChowdhary/continuous-claude) by [Anand Chowdhary](https://github.com/AnandChowdhary). Thanks for the original idea — go give the upstream project a star.
 
 ## License
 
