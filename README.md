@@ -94,6 +94,10 @@ Pick one (or combine — first one to trip wins):
 - **No dollar cost tracking.** Codex CLI's JSONL stream emits token counts on every `turn.completed` event but no dollar amount. ChatGPT plans include Codex flat-rate; only API-key users have meaningful dollar costs, and pricing varies by model. Use `--max-tokens` instead.
 - **No fine-grained tool allowlisting** — Codex uses sandbox modes (`read-only` / `workspace-write` / `danger-full-access`), not per-tool allowlists.
 
+## Credits
+
+The iterative-PR-loop pattern is borrowed from [continuous-claude](https://github.com/AnandChowdhary/continuous-claude). Thanks to its author for the original idea.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
