@@ -2,10 +2,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Codext logo">
   <title>Codext</title>
   <rect width="512" height="512" rx="96" fill="#000000"/>
-  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 376 256 A 120 120 0 1 1 256 136" stroke-width="28"/>
-    <path d="M 224 108 L 256 136 L 228 168" stroke-width="28"/>
-    <path d="M 196 200 L 256 256 L 196 312" stroke-width="44"/>
-    <path d="M 280 312 L 348 312" stroke-width="44"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 376 256 A 120 120 0 1 1 256 136" stroke="#5FB9C5" stroke-width="32"/>
+    <path d="M 224 108 L 256 136 L 228 168" stroke="#5FB9C5" stroke-width="32"/>
+    <path d="M 196 200 L 256 256 L 196 312" stroke="#FFFFFF" stroke-width="44"/>
+    <path d="M 280 312 L 348 312" stroke="#FFFFFF" stroke-width="44"/>
   </g>
 </svg>
