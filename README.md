@@ -56,6 +56,12 @@ codext -p "Quick fixes" -m 3 --disable-branches
 # Pick a model (forwarded to codex exec)
 codext -p "Add tests" -m 5 --model gpt-5.5
 
+# Crank up reasoning effort for a hard refactor
+codext -p "Refactor the auth module" -m 5 --model gpt-5.5 --effort high
+
+# Fast service tier (1.5x faster on gpt-5.5 / gpt-5.4)
+codext -p "Ship the launch page" -m 3 --model gpt-5.5 --fast --effort high
+
 # Full auto-on-everything (overrides default --full-auto)
 codext -p "Wipe and rebuild docs" -m 1 --yolo
 
@@ -68,7 +74,7 @@ codext -p "Task A" -m 5 --worktree task-a
 codext -p "Task B" -m 5 --worktree task-b
 ```
 
-Run `codext --help` for the full flag list.
+Run `codext --help` for the inline reference, or read on for the full table.
 
 ## Requirements
 
@@ -77,51 +83,118 @@ Run `codext --help` for the full flag list.
 - `jq` — JSON parsing
 - A GitHub repo with `origin` set (unless you pass `--disable-commits`)
 
-## Tuning the model
+## Commands
 
-Two ergonomic shortcuts cover what most people want to tweak:
+| Command | Description |
+|---|---|
+| `codext` *(default)* | Run the iterative loop. Accepts every flag in the *Options* tables below. |
+| `codext update` | Check for and install the latest release from GitHub. Accepts `--auto-update` (skip the confirmation prompt) and `--disable-updates`. |
 
-- `--effort minimal|low|medium|high|xhigh` — reasoning effort (maps to `-c model_reasoning_effort=<level>`)
-- `--fast` — Fast service tier (maps to `-c service_tier=fast`; 1.5× faster, higher credit/token cost; works on `gpt-5.5` and `gpt-5.4`)
+## Options
 
-```bash
-# High-effort refactor on the frontier model
-codext -p "Refactor the auth module" -m 5 --model gpt-5.5 --effort high
+### Required: prompt + at least one budget
 
-# Cheap, fast iteration on a smaller model
-codext -p "Add tests" -m 5 --model gpt-5.4-mini --effort low --max-tokens 2000000
-```
+| Flag | Type | Description |
+|---|---|---|
+| `-p, --prompt <text>` | string | Prompt/goal Codex works on each iteration. |
+| `-m, --max-runs <number>` | int ≥ 0 | Cap by successful iterations. `0` means unlimited (only valid combined with `--max-tokens` or `--max-duration`). |
+| `--max-tokens <number>` | int > 0 | Cap by total tokens (input + output + reasoning) summed across all iterations. |
+| `--max-duration <duration>` | `30m`, `2h`, `1h30m`, `90s`, … | Cap by wall-clock time. |
 
-## Forwarding flags to `codex exec`
+> A prompt is always required. **At least one** of `-m` / `--max-tokens` / `--max-duration` is required; combine them and the first cap to trip wins.
 
-Any flag codext doesn't recognize is forwarded to `codex exec`. Common ones:
+### PR workflow
 
-- `--model gpt-5.5` (or `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`)
-- `--sandbox read-only|workspace-write|danger-full-access`
-- `--ask-for-approval untrusted|on-request|never`
-- `--add-dir <path>` (grant Codex write access to extra directories)
-- `--cd <path>` (set the working directory before the run)
-- `--search` (use live web search instead of the cached default)
-- `--oss` (use the local OSS provider — Ollama)
-- `--image <path>` (attach images to the initial prompt)
-- `--output-schema <file>`, `--output-last-message <file>`, `--ephemeral`
-- `--yolo` / `--dangerously-bypass-approvals-and-sandbox` (overrides default `--full-auto`)
-- `-c key=value` (any inline config override, e.g. `-c model_verbosity=high`)
+| Flag | Default | Description |
+|---|---|---|
+| `--owner <owner>` | auto-detected from `git remote` | GitHub org/user. |
+| `--repo <repo>` | auto-detected from `git remote` | Repo name. |
+| `--git-branch-prefix <prefix>` | `codext/` | Branch name prefix used for each iteration's branch. |
+| `--merge-strategy <strategy>` | `squash` | PR merge strategy: `squash`, `merge`, or `rebase`. |
+| `--notes-file <file>` | `SHARED_TASK_NOTES.md` | Path to the cross-iteration handoff notes file Codex maintains. |
+| `--disable-commits` | off (commits enabled) | Skip all commits and PRs — just run `codex exec` and stop. |
+| `--disable-branches` | off (branches enabled) | Commit on the current branch instead of opening a per-iteration branch + PR. |
+
+### Worktrees (parallel runs)
+
+| Flag | Default | Description |
+|---|---|---|
+| `--worktree <name>` | none | Run inside a git worktree with this name (creates if missing). Useful for running multiple codext instances side-by-side. |
+| `--worktree-base-dir <path>` | `../codext-worktrees` | Where worktrees live. |
+| `--cleanup-worktree` | off | Remove the worktree after the run finishes. |
+| `--list-worktrees` | — | Print all active git worktrees and exit. |
+
+### Reviewer / CI / PR comments
+
+| Flag | Default | Description |
+|---|---|---|
+| `-r, --review-prompt <text>` | none | Run a reviewer pass after each iteration to validate/fix changes (e.g. run tests + lint). |
+| `--disable-ci-retry` | off (retry enabled) | Don't auto-attempt to fix CI failures. |
+| `--ci-retry-max <n>` | `1` | Maximum CI fix attempts per PR. |
+| `--disable-comment-review` | off (review enabled) | Don't auto-address review comments on the PR. |
+| `--comment-review-max <n>` | `1` | Maximum comment-review attempts per PR. |
+
+### Early stop on project completion
+
+| Flag | Default | Description |
+|---|---|---|
+| `--completion-signal <phrase>` | `CODEXT_PROJECT_COMPLETE` | Exact phrase Codex outputs when it believes the *entire* goal is finished. |
+| `--completion-threshold <n>` | `3` | Number of consecutive iterations that must emit the signal before codext exits early. |
+
+### Codex model tuning (shortcuts)
+
+| Flag | Maps to | Description |
+|---|---|---|
+| `--effort <level>` | `-c model_reasoning_effort=<level>` | Reasoning effort: `minimal` \| `low` \| `medium` \| `high` \| `xhigh`. (`xhigh` is model-dependent.) |
+| `--fast` | `-c service_tier=fast` | Codex Fast service tier — 1.5× faster output for `gpt-5.5` and `gpt-5.4` at higher credit/token cost. |
+
+### Updates
+
+| Flag | Default | Description |
+|---|---|---|
+| `--auto-update` | prompts before applying | Install available updates non-interactively at startup. |
+| `--disable-updates` | off (checks enabled) | Skip update checks entirely. Combine with `--auto-update` for fully unattended runs. |
+
+### Misc
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | Simulate execution without making any changes (no `codex exec`, no commits, no PRs). |
+| `-h, --help` | Show the inline help text. |
+| `-v, --version` | Print the codext version. |
+
+## Codex passthrough flags
+
+Any flag codext doesn't recognize is forwarded to `codex exec` verbatim. Codext also adds `--json --skip-git-repo-check --full-auto` to every run by default — pass `--yolo` to override `--full-auto`.
+
+The most useful pass-through flags:
+
+| Flag | Description |
+|---|---|
+| `--model <name>` | `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, … (see [pricing.md](pricing.md) for per-model cost). |
+| `--oss` | Use the local OSS provider (requires running Ollama). |
+| `--profile <name>` | Pick a `[profiles.<name>]` block from `~/.codex/config.toml`. |
+| `--sandbox <mode>` | `read-only` \| `workspace-write` \| `danger-full-access`. |
+| `--ask-for-approval <mode>` | `untrusted` \| `on-request` \| `never`. |
+| `--yolo` *(alias for `--dangerously-bypass-approvals-and-sandbox`)* | Bypass approvals and sandboxing. Use only inside an isolated runner. |
+| `--add-dir <path>` | Grant Codex write access to extra directories outside the workspace. |
+| `--cd <path>` | Set the working directory before running. |
+| `--search` | Switch from cached to live web search for the run. |
+| `--image <path>` | Attach images to the initial prompt (repeatable, comma-separated). |
+| `--ephemeral` | Don't persist session rollout files to disk. |
+| `--output-last-message <file>` *(alias `-o`)* | Write the final agent message to a file. |
+| `--output-schema <file>` | Constrain the final response to a JSON Schema. |
+| `--color <mode>` | `always` \| `never` \| `auto`. |
+| `-c key=value` | Inline override for any `config.toml` key (e.g. `-c model_verbosity=high`). |
+
+> **Flag collisions to know:** codext's `-m` is `--max-runs` (codex uses `-m` for `--model`); codext's `-p` is `--prompt` (codex uses `-p` for `--profile`); codext's `-r` is `--review-prompt`. **Always use the long-form `--model`, `--profile`** when targeting codex.
 
 See [`docs/codex-options.md`](docs/codex-options.md) for the **full** GA-only flag matrix and the most useful `config.toml` keys, and [`pricing.md`](pricing.md) for token-budget-to-dollar mapping per model.
 
-## Throttles
-
-Pick one (or combine — first one to trip wins):
-
-- `-m, --max-runs <number>` — cap by successful iterations
-- `--max-tokens <number>` — cap by total tokens (input + output + reasoning) across all iterations
-- `--max-duration <duration>` — cap by wall-clock time (`30m`, `2h`, `1h30m`, etc.)
-
 ## Limitations
 
-- **No dollar cost tracking.** Codex CLI's JSONL stream emits token counts on every `turn.completed` event but no dollar amount. ChatGPT plans include Codex flat-rate; only API-key users have meaningful dollar costs, and pricing varies by model. Use `--max-tokens` instead.
-- **No fine-grained tool allowlisting** — Codex uses sandbox modes (`read-only` / `workspace-write` / `danger-full-access`), not per-tool allowlists.
+- **No dollar cost tracking.** Codex CLI's JSONL stream emits token counts on every `turn.completed` event but no dollar amount. ChatGPT plans include Codex flat-rate; only API-key users have meaningful dollar costs, and pricing varies by model. Use `--max-tokens` instead — see [pricing.md](pricing.md) for token→$ conversion tables.
+- **No fine-grained tool allowlisting.** Codex uses sandbox modes (`read-only` / `workspace-write` / `danger-full-access`), not per-tool allowlists.
 
 ## Credits
 
