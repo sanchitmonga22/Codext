@@ -1,0 +1,129 @@
+================================================================
+  CODEXT LAUNCH-VIDEO DEMO — copy/paste-ready commands
+================================================================
+
+What you'll get: a polished single-file landing page committed
+into landing/index.html through 3 codext iterations, each one a
+real branch + PR + CI + auto-merge cycle on your repo.
+
+----------------------------------------------------------------
+  PRE-FLIGHT CHECKLIST (one-time, ~30 seconds)
+----------------------------------------------------------------
+
+# Verify codext is on the latest release.
+codext --version             # should report v0.1.2 or newer
+codext update                # upgrade in-place if older
+
+# Verify auth.
+codex login --status         # must be authenticated
+gh auth status               # must be authenticated to GitHub
+
+# Run from the codext repo root (or your fork of it).
+git rev-parse --show-toplevel
+git status                   # clean working tree recommended
+
+
+----------------------------------------------------------------
+  THE COMMAND (copy this whole block, paste into terminal)
+----------------------------------------------------------------
+
+codext -p "$(cat demo/launch-prompt.txt)" \
+  -m 3 \
+  --max-tokens 1500000 \
+  --max-duration 25m \
+  --model gpt-5.5 \
+  --effort medium \
+  --fast \
+  --git-branch-prefix demo/landing-
+
+# What each flag does:
+#   -p "$(cat demo/launch-prompt.txt)"   the prompt, loaded from the file next to this one
+#   -m 3                                 cap at 3 successful iterations (= 3 PRs)
+#   --max-tokens 1500000                 hard cap of 1.5M tokens across all iterations
+#   --max-duration 25m                   safety net — bail out after 25 minutes wall-clock
+#   --model gpt-5.5                      OpenAI's frontier coding model (ChatGPT auth only)
+#   --effort medium                      solid reasoning without burning extra tokens
+#   --fast                               Codex Fast service tier — 1.5x faster output
+#   --git-branch-prefix demo/landing-    keep demo branches namespaced
+
+# Estimated cost on API key auth (gpt-5.5, 60/40 input/output):
+#   ~1M total tokens used in practice = ~$15 of API spend, capped at $22 by --max-tokens.
+# Estimated wall-clock: 5-10 minutes for 3 iterations with --fast on.
+
+
+----------------------------------------------------------------
+  CHEAPER VARIANT — gpt-5.4-mini (~$2, similar pacing)
+----------------------------------------------------------------
+
+# Use this if you want a near-identical demo at ~10% of the cost.
+codext -p "$(cat demo/launch-prompt.txt)" \
+  -m 3 \
+  --max-tokens 2000000 \
+  --max-duration 25m \
+  --model gpt-5.4-mini \
+  --effort medium \
+  --git-branch-prefix demo/landing-
+
+
+----------------------------------------------------------------
+  PEEK BEFORE YOU PAY — dry-run mode (free)
+----------------------------------------------------------------
+
+# Walk through the iteration scaffolding without calling codex
+# or creating PRs. Use this in the video's intro to show the loop
+# structure, then re-run without --dry-run for the real thing.
+codext -p "$(cat demo/launch-prompt.txt)" \
+  -m 3 \
+  --dry-run
+
+
+----------------------------------------------------------------
+  AFTER THE LOOP FINISHES
+----------------------------------------------------------------
+
+# 1) Open the rendered landing page in your default browser.
+open landing/index.html
+
+# 2) Show the merged demo PRs in the video.
+gh pr list --state merged --search "head:demo/landing-" --limit 5
+
+# 3) Show the final landing/ folder.
+ls -la landing/
+git log --oneline -- landing/
+
+
+----------------------------------------------------------------
+  RECORDING TIPS
+----------------------------------------------------------------
+
+- Maximize your terminal — codext's per-iteration output is dense
+  but readable.
+- The "🔢 Iteration tokens" / "💰 Running total" lines are the
+  money shots — they show the budget tracking working.
+- The "🌿 Creating branch" → "🤖 Running Codex CLI" → "📤 Pushing"
+  → "🔨 Creating pull request" → "✅ PR merged" sequence is the
+  story arc of each iteration. Worth lingering on for the video.
+- After the loop, do an `open landing/index.html` to reveal the
+  result. Cut from the terminal output to the rendered page.
+
+
+----------------------------------------------------------------
+  TROUBLESHOOTING
+----------------------------------------------------------------
+
+# "❌ codex command not found" → install the OpenAI Codex CLI:
+npm install -g @openai/codex
+codex login
+
+# "❌ gh: command not found" → install GitHub CLI:
+brew install gh
+gh auth login
+
+# Want to undo the demo PRs?
+git checkout main
+git pull
+git log --oneline -10                    # find the commits to drop
+# (or just delete the landing/ folder and commit a revert)
+
+# Want to keep iterating? Re-run the same command — codext's
+# SHARED_TASK_NOTES.md picks up where the last run left off.
