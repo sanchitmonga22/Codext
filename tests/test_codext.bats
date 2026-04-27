@@ -89,6 +89,79 @@ setup() {
     assert_equal "${EXTRA_CODEX_FLAGS[2]}" "--yolo"
 }
 
+@test "parse_arguments handles --effort flag" {
+    source "$SCRIPT_PATH"
+    parse_arguments --effort high
+    assert_equal "$EFFORT" "high"
+}
+
+@test "parse_arguments expands --effort into a -c override" {
+    source "$SCRIPT_PATH"
+    EXTRA_CODEX_FLAGS=()
+    EFFORT=""
+    parse_arguments --effort medium
+    # The two final entries should be the -c override appended after parsing.
+    local n="${#EXTRA_CODEX_FLAGS[@]}"
+    assert_equal "${EXTRA_CODEX_FLAGS[$((n-2))]}" "-c"
+    assert_equal "${EXTRA_CODEX_FLAGS[$((n-1))]}" "model_reasoning_effort=medium"
+}
+
+@test "parse_arguments handles --fast flag" {
+    source "$SCRIPT_PATH"
+    FAST_MODE=false
+    parse_arguments --fast
+    assert_equal "$FAST_MODE" "true"
+}
+
+@test "parse_arguments expands --fast into a -c service_tier override" {
+    source "$SCRIPT_PATH"
+    EXTRA_CODEX_FLAGS=()
+    FAST_MODE=false
+    parse_arguments --fast
+    local n="${#EXTRA_CODEX_FLAGS[@]}"
+    assert_equal "${EXTRA_CODEX_FLAGS[$((n-2))]}" "-c"
+    assert_equal "${EXTRA_CODEX_FLAGS[$((n-1))]}" "service_tier=fast"
+}
+
+@test "parse_arguments combines --effort and --fast" {
+    source "$SCRIPT_PATH"
+    EXTRA_CODEX_FLAGS=()
+    EFFORT=""
+    FAST_MODE=false
+    parse_arguments --effort xhigh --fast
+    assert_equal "$EFFORT" "xhigh"
+    assert_equal "$FAST_MODE" "true"
+    # Both -c overrides should be present in EXTRA_CODEX_FLAGS.
+    local joined=" ${EXTRA_CODEX_FLAGS[*]} "
+    [[ "$joined" == *" -c model_reasoning_effort=xhigh "* ]]
+    [[ "$joined" == *" -c service_tier=fast "* ]]
+}
+
+@test "validate_arguments rejects invalid --effort value" {
+    source "$SCRIPT_PATH"
+    PROMPT="test"
+    MAX_RUNS="5"
+    GITHUB_OWNER="user"
+    GITHUB_REPO="repo"
+    EFFORT="bogus"
+    run validate_arguments
+    assert_failure
+    assert_output --partial "--effort must be one of"
+}
+
+@test "validate_arguments accepts every documented --effort value" {
+    source "$SCRIPT_PATH"
+    PROMPT="test"
+    MAX_RUNS="5"
+    GITHUB_OWNER="user"
+    GITHUB_REPO="repo"
+    for level in minimal low medium high xhigh; do
+        EFFORT="$level"
+        run validate_arguments
+        assert_success
+    done
+}
+
 # -------------------------------------------------------------
 # Argument validation
 # -------------------------------------------------------------

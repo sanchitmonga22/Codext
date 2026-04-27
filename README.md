@@ -77,15 +77,38 @@ Run `codext --help` for the full flag list.
 - `jq` — JSON parsing
 - A GitHub repo with `origin` set (unless you pass `--disable-commits`)
 
+## Tuning the model
+
+Two ergonomic shortcuts cover what most people want to tweak:
+
+- `--effort minimal|low|medium|high|xhigh` — reasoning effort (maps to `-c model_reasoning_effort=<level>`)
+- `--fast` — Fast service tier (maps to `-c service_tier=fast`; 1.5× faster, higher credit/token cost; works on `gpt-5.5` and `gpt-5.4`)
+
+```bash
+# High-effort refactor on the frontier model
+codext -p "Refactor the auth module" -m 5 --model gpt-5.5 --effort high
+
+# Cheap, fast iteration on a smaller model
+codext -p "Add tests" -m 5 --model gpt-5.4-mini --effort low --max-tokens 2000000
+```
+
 ## Forwarding flags to `codex exec`
 
-Any flag the script doesn't recognize is forwarded to `codex exec`. Common ones:
+Any flag codext doesn't recognize is forwarded to `codex exec`. Common ones:
 
-- `--model gpt-5.5` (or `gpt-5.4`)
+- `--model gpt-5.5` (or `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`)
 - `--sandbox read-only|workspace-write|danger-full-access`
+- `--ask-for-approval untrusted|on-request|never`
 - `--add-dir <path>` (grant Codex write access to extra directories)
+- `--cd <path>` (set the working directory before the run)
+- `--search` (use live web search instead of the cached default)
+- `--oss` (use the local OSS provider — Ollama)
+- `--image <path>` (attach images to the initial prompt)
+- `--output-schema <file>`, `--output-last-message <file>`, `--ephemeral`
 - `--yolo` / `--dangerously-bypass-approvals-and-sandbox` (overrides default `--full-auto`)
-- `-c key=value` (any inline config override)
+- `-c key=value` (any inline config override, e.g. `-c model_verbosity=high`)
+
+See [`docs/codex-options.md`](docs/codex-options.md) for the **full** GA-only flag matrix and the most useful `config.toml` keys, and [`pricing.md`](pricing.md) for token-budget-to-dollar mapping per model.
 
 ## Throttles
 

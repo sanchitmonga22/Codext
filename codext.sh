@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="v0.1.1"
+VERSION="v0.1.2"
 
 # Repo coordinates used for self-update checks and release-note display.
 UPDATE_REPO_OWNER="sanchitmonga22"
@@ -98,6 +98,13 @@ MAX_RUNS=""
 MAX_TOKENS=""
 MAX_DURATION=""
 ENABLE_COMMITS=true
+
+# Codex `codex exec` convenience overrides. These map onto `-c key=value`
+# config overrides so users get short, discoverable flags for the two settings
+# people most commonly want to tune (reasoning effort + Fast service tier).
+# The full menu of flags passes through via EXTRA_CODEX_FLAGS as before.
+EFFORT=""
+FAST_MODE=false
 DISABLE_BRANCHES=false
 GIT_BRANCH_PREFIX="codext/"
 MERGE_STRATEGY="squash"
@@ -263,13 +270,29 @@ OPTIONAL FLAGS:
     --disable-comment-review      Disable automatic PR comment review (enabled by default)
     --comment-review-max <number> Maximum comment review attempts per PR (default: 1)
 
+CODEX MODEL TUNING (convenience shortcuts):
+    --effort <level>              Reasoning effort: minimal | low | medium | high | xhigh
+                                  (maps to: -c model_reasoning_effort=<level>)
+    --fast                        Use Fast service tier — 1.5x faster, higher credit/token cost
+                                  (maps to: -c service_tier=fast)
+
 CODEX-SPECIFIC PASSTHROUGH FLAGS:
-    Any unrecognized flag is forwarded directly to \`codex exec\`. Useful examples:
-    --model <name>                Override the model (e.g., gpt-5.5, gpt-5.4)
-    --yolo                        Bypass approvals and sandbox entirely (overrides default --full-auto)
+    Any unrecognized flag is forwarded directly to \`codex exec\`. Common flags:
+    --model <name>                Override the model (e.g., gpt-5.5, gpt-5.4, gpt-5.4-mini)
+    --oss                         Use the local OSS provider (requires running Ollama)
     --sandbox <mode>              read-only | workspace-write | danger-full-access
+    --ask-for-approval <mode>     untrusted | on-request | never
+    --yolo                        Bypass approvals and sandbox entirely (overrides default --full-auto)
     --add-dir <path>              Grant Codex write access to an additional directory
-    -c key=value                  Inline configuration override (forwarded to codex)
+    --cd <path>                   Set the working directory before running
+    --search                      Enable live web search (default: cached)
+    --image <path>                Attach image(s) to the initial prompt
+    --output-schema <file>        Constrain the final response to a JSON Schema
+    --output-last-message <file>  Write the final message to a file (-o for short)
+    --ephemeral                   Don't persist session rollout files to disk
+    --color <mode>                always | never | auto (default: auto)
+    -c key=value                  Inline config override (e.g., -c model_verbosity=high)
+    See docs/codex-options.md for the full reference.
 
 COMMANDS:
     update                        Check for and install the latest version
@@ -312,6 +335,12 @@ EXAMPLES:
 
     # Use a specific Codex model (forwarded as a passthrough flag)
     codext -p "Add tests" -m 5 --model gpt-5.5 --owner myuser --repo myproject
+
+    # Crank up reasoning effort for a hard refactor
+    codext -p "Refactor the auth module" -m 5 --model gpt-5.5 --effort high
+
+    # Run with Fast mode + high effort (gpt-5.5 only)
+    codext -p "Ship the launch page" -m 3 --model gpt-5.5 --fast --effort high
 
     # Use a reviewer to validate and fix changes after each iteration
     codext -p "Add new feature" -m 5 --owner myuser --repo myproject \\
@@ -837,14 +866,36 @@ parse_arguments() {
                 COMMENT_REVIEW_MAX_ATTEMPTS="$2"
                 shift 2
                 ;;
+            --effort)
+                EFFORT="$2"
+                shift 2
+                ;;
+            --fast)
+                FAST_MODE=true
+                shift
+                ;;
             *)
                 # Forward unknown flags to `codex exec`. This covers
-                # --model, --yolo, --sandbox, --add-dir, -c, etc.
+                # --model, --yolo, --sandbox, -a/--ask-for-approval,
+                # --add-dir, --cd, --search, -i/--image, --oss,
+                # --profile, -o/--output-last-message, --output-schema,
+                # --color, --ephemeral, -c key=value, etc.
                 EXTRA_CODEX_FLAGS+=("$1")
                 shift
                 ;;
         esac
     done
+
+    # Expand --effort and --fast convenience flags into the equivalent
+    # `-c key=value` overrides that codex exec understands. We append after
+    # all other parsing so an explicit `-c` override on the same key still
+    # takes precedence (codex applies `-c` overrides left-to-right).
+    if [ -n "$EFFORT" ]; then
+        EXTRA_CODEX_FLAGS+=("-c" "model_reasoning_effort=$EFFORT")
+    fi
+    if [ "$FAST_MODE" = "true" ]; then
+        EXTRA_CODEX_FLAGS+=("-c" "service_tier=fast")
+    fi
 }
 
 parse_update_flags() {
@@ -928,6 +979,16 @@ validate_arguments() {
             echo "❌ Error: --comment-review-max must be a positive integer" >&2
             exit 1
         fi
+    fi
+
+    if [ -n "$EFFORT" ]; then
+        case "$EFFORT" in
+            minimal|low|medium|high|xhigh) ;;
+            *)
+                echo "❌ Error: --effort must be one of: minimal, low, medium, high, xhigh" >&2
+                exit 1
+                ;;
+        esac
     fi
 
     if [ "$ENABLE_COMMITS" = "true" ]; then

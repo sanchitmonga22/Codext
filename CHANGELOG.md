@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.2
+
+Codex tuning shortcuts and documentation overhaul.
+
+- New `--effort minimal|low|medium|high|xhigh` flag — maps to `-c model_reasoning_effort=<level>` so you can crank reasoning effort without remembering the `-c` syntax.
+- New `--fast` flag — maps to `-c service_tier=fast`, the Codex Fast service tier. 1.5× faster output for `gpt-5.5`/`gpt-5.4` at higher credit/token cost.
+- `--help` now lists the most useful `codex exec` pass-through flags (`--model`, `--sandbox`, `--ask-for-approval`, `--add-dir`, `--cd`, `--search`, `--image`, `--oss`, `--output-schema`, `--output-last-message`, `--ephemeral`, `--color`, `-c key=value`).
+- New [`docs/codex-options.md`](docs/codex-options.md) — comprehensive, GA-only reference of every Codex CLI flag and `config.toml` key codext exposes, sourced directly from `developers.openai.com/codex/cli/reference`.
+- New [`pricing.md`](pricing.md) — per-model API/credit pricing with `--max-tokens` to-dollar conversion tables across 60/40, 50/50, and 30/70 input/output mixes.
+- Logo: featured in the README header (gradient app-icon themed off the OpenAI Codex desktop icon, with a loop wrapping the `>_` cursor).
+
 ## v0.1.1
 
 Bugfix release.
