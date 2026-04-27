@@ -1,6 +1,9 @@
 # Bats test deps (installed by tests/setup.sh)
 tests/libs/
 
+# Local-only launch demo scratch files
+demo/
+
 # macOS
 .DS_Store
 
