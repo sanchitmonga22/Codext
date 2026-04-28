@@ -10,6 +10,26 @@ Run OpenAI's [Codex CLI](https://github.com/openai/codex) in a loop — autonomo
 
 > *Codext was itself built using Codex CLI. The loop ate its own tail.*
 
+## Why Codext?
+
+OpenAI's Codex CLI is excellent at single-turn tasks. The trouble starts when your goal is bigger than one turn — a multi-day refactor, a test sweep across hundreds of files, a dependency upgrade across a monorepo, a feature that touches twenty modules. Run `codex exec` once and you'll typically watch Codex stop after 1-2 hours with the work half-finished, declare partial victory, and exit. The session's memory dies with it. Run the Codex Mac app and you hit the same wall — there's no built-in way to *force* it to keep going until the goal is actually done.
+
+Codext makes that loop **unstoppable**. You give it one prompt and one budget (`--max-runs`, `--max-tokens`, or `--max-duration`) and it runs Codex over and over until the budget runs out or the project is signaled complete:
+
+- **Forced continuous progress.** Codext won't stop because Codex called it "good enough" — it pushes the PR, waits for CI, merges, pulls main, and starts the next iteration with fresh context. Repeat until budget or completion signal.
+
+- **Layered verification — "done" requires multiple independent confirmations.** Three checks gate every iteration: (1) a per-iteration reviewer pass (`-r "<reviewer prompt>"`) that re-runs your tests/linters/audits and auto-fixes anything broken; (2) the PR's CI checks must turn green before merge — failed CI is auto-retried (`--ci-retry-max`); (3) any PR review comments are auto-addressed before merge (`--comment-review-max`). Codext only exits early when the agent independently signals `CODEXT_PROJECT_COMPLETE` for `--completion-threshold` *consecutive* iterations (default: **3**). One iteration calling itself "done" isn't enough — three in a row are.
+
+- **State that survives.** Codex's per-session memory is wiped at the end of each run. Codext maintains a `SHARED_TASK_NOTES.md` that the agent updates between iterations — open questions, decisions, what's still TODO. The next iteration picks up exactly where the last one left off.
+
+- **Budget-controlled overnight runs.** Set `--max-duration 12h` or `--max-tokens 10000000`, kick it off before you go to bed, wake up to a stack of merged PRs and a finished task. Cost is bounded by the cap you set, not by Codex's whim. See [`pricing.md`](pricing.md) for per-model token-to-dollar conversion.
+
+- **Parallel exploration.** Use `--worktree <name>` to run several Codext instances against the same repo at once, each in its own branch space and notes file.
+
+- **Built on the model that finally makes this work.** With GPT-5.5 at `--effort high --fast`, output quality across long iterative loops is the first time this pattern produces shippable code without constant human babysitting.
+
+The result: tasks that would take 50 single Codex sessions and a human shuttling state between them get done in one command, on one budget, while you're not at your desk.
+
 ## How it works
 
 Codext drives `codex exec` iteratively against your repo. Each iteration:
